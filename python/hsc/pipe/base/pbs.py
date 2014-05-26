@@ -55,6 +55,7 @@ class PbsArgumentParser(argparse.ArgumentParser):
         group.add_argument("--job", help="Job name")
         group.add_argument("--nodes", type=int, default=1, help="Number of nodes")
         group.add_argument("--procs", type=int, default=1, help="Number of processors per node")
+        group.add_argument("--pbs-group", dest="pbsGroup", default=None, help="Group (property) of nodes to assign jobs")
         group.add_argument("--time", type=float, default=1000,
                            help="Expected execution time per element (sec)")
         group.add_argument("--pbs-output", dest="pbsOutput", help="Output directory")
@@ -75,6 +76,7 @@ class PbsArgumentParser(argparse.ArgumentParser):
             args.parent = self._parent.parse_args(config, args=leftover, **kwargs)
             args.leftover = leftover
         args.pbs = Pbs(outputDir=args.pbsOutput, numNodes=args.nodes, numProcsPerNode=args.procs,
+                       groupNodes=args.pbsGroup,                       
                        walltime=args.time, queue=args.queue, jobName=args.job, dryrun=args.dryrun,
                        doExec=args.doExec, mpiexec=args.mpiexec)
         return args
@@ -112,6 +114,7 @@ is required for the wrapper as well).
 
 class Pbs(object):
     def __init__(self, outputDir=None, numNodes=1, numProcsPerNode=1, queue=None, jobName=None, walltime=None,
+                 groupNodes=None, 
                  dryrun=False, doExec=False, mpiexec=""):
         self.outputDir = outputDir
         self.numNodes = numNodes
@@ -119,11 +122,13 @@ class Pbs(object):
         self.queue = queue
         self.jobName = jobName
         self.walltime = walltime
+        self.groupNodes = groupNodes
         self.dryrun = dryrun
         self.doExec = doExec
         self.mpiexec = mpiexec
 
     def create(self, command, walltime=None, numNodes=None, numProcsPerNode=None, jobName=None,
+               groupNodes=None,
                threads=None):
         if walltime is None:
             walltime = self.walltime
@@ -152,7 +157,10 @@ class Pbs(object):
 
         print >>f, "#!/bin/bash"
         print >>f, "#   Post this job with `qsub -V $0'"
-        print >>f, "#PBS -l nodes=%d:ppn=%d" % (numNodes, numProcsPerNode)
+        if groupNodes is not None:
+            print >>f, "#PBS -l nodes=%d:ppn=%d:%s" % (numNodes, numProcsPerNode, groupNodes)
+        else:
+            print >>f, "#PBS -l nodes=%d:ppn=%d" % (numNodes, numProcsPerNode)
         if walltime is not None:
             print >>f, "#PBS -l walltime=%d" % walltime
         if self.outputDir is not None:
