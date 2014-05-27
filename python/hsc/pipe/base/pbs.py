@@ -136,6 +136,8 @@ class Pbs(object):
             numNodes = self.numNodes
         if numProcsPerNode is None:
             numProcsPerNode = self.numProcsPerNode
+        if groupNodes is None:
+            groupNodes = self.groupNodes
         if jobName is None:
             jobName = self.jobName
         if threads is None:
