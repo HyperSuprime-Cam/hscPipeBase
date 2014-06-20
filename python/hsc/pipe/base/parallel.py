@@ -80,6 +80,7 @@ class Batch(object):
     def execution(self, command):
         """Return execution string for script to be submitted"""
         return "\n".join([exportEnv(),
+                          "date",
                           "echo \"mpiexec is at: $(which mpiexec)\"",
                           "ulimit -a",
                           "umask %s" % UMASK,
@@ -144,7 +145,7 @@ class PbsBatch(Batch):
         return "\n".join(["#PBS -l nodes=%d:ppn=%d" % (self.numNodes, self.numProcsPerNode),
                           "#PBS -l walltime=%d" % walltime if walltime is not None else "",
                           "#PBS -o %s" % self.outputDir if self.outputDir is not None else "",
-                          "#PBS -N %s" % jobName if self.jobName is not None else "",
+                          "#PBS -N %s" % self.jobName if self.jobName is not None else "",
                           "#PBS -q %s" % self.queue if self.queue is not None else "",
                           "#PBS -j oe",
                           "#PBS -W umask=%s" % UMASK,
@@ -162,7 +163,7 @@ class SlurmBatch(Batch):
         filename = os.path.join(outputDir, (self.jobName if self.jobName is not None else "slurm") + ".o%j")
         return "\n".join(["#SBATCH --nodes=%d" % self.numNodes,
                           "#SBATCH --ntasks-per-node=%d" % self.numProcsPerNode,
-                          "#SBATCH --time=%d" % walltime if walltime is not None else "",
+                          "#SBATCH --time=%d" % (walltime/60.0 + 0.5) if walltime is not None else "",
                           "#SBATCH --job-name=%s" % self.jobName if self.jobName is not None else "",
                           "#SBATCH -p %s" % self.queue if self.queue is not None else "",
                           "#SBATCH --output=%s" % filename,
@@ -170,7 +171,7 @@ class SlurmBatch(Batch):
                           ])
 
     def submitCommand(self, scriptName):
-        return "srun %s" % scriptName
+        return "sbatch %s" % scriptName
 
 class SmpBatch(Batch):
     """Not-really-Batch submission with multiple cores on the current node
@@ -216,7 +217,7 @@ class BatchArgumentParser(argparse.ArgumentParser):
         group.add_argument("--procs", type=int, default=1, help="Number of processors per node")
         group.add_argument("--time", type=float, default=1000,
                            help="Expected execution time per element (sec)")
-        group.add_argument("--batch-type", choices=BATCH_TYPES.keys(), default="pbs",
+        group.add_argument("--batch-type", dest="batchType", choices=BATCH_TYPES.keys(), default="pbs",
                            help="Batch system to use")
         group.add_argument("--batch-output", dest="batchOutput", help="Output directory")
         group.add_argument("--dry-run", dest="dryrun", default=False, action="store_true",
