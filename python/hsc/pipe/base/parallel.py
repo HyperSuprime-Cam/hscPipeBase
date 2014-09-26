@@ -68,7 +68,7 @@ class Batch(object):
         self.mpiexec = mpiexec
 
     def shebang(self):
-        return "#!/bin/bash"
+        return "#!/bin/sh"
 
     def preamble(self, command, walltime=None):
         """Return preamble string for script to be submitted
@@ -131,7 +131,7 @@ class Batch(object):
         if self.dryrun:
             print "Would run: %s" % command
         elif self.doExec:
-            os.execl(script, script)
+            os.execl(scriptName, scriptName)
         else:
             os.system(command)
         return scriptName
@@ -288,16 +288,15 @@ is required for the wrapper as well).
 
 
 def exportEnv():
-    """Generate bash script to regenerate the current environment"""
+    """Generate sh script to regenerate the current environment"""
     output = ""
     for key, val in os.environ.items():
         if key in ("DISPLAY",):
             continue
         if val.startswith("() {"):
-            # This is a function.
-            # "Two parentheses, a single space, and a brace"
-            # is exactly the same criterion as bash uses.
-            output += "function {key} {val}\nexport -f {key}\n".format(key=key, val=val)
+            # A function.
+            # The variable name may include parens (a bashism?); these need to be removed for POSIX sh
+            output += "{key} {val}\nexport -f {key}\n".format(key=key.replace("()", ""), val=val)
         else:
             # This is a variable.
             output += "export {key}='{val}'\n".format(key=key, val=val.replace("'", "'\"'\"'"))
