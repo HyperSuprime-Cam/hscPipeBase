@@ -44,7 +44,7 @@ def shCommandFromArgs(args):
 class Batch(object):
     """Base class for batch submission"""
     def __init__(self, outputDir=None, numNodes=1, numProcsPerNode=1, queue=None, jobName=None, walltime=None,
-                 dryrun=False, doExec=False, mpiexec=""):
+                 dryrun=False, doExec=False, mpiexec="", pbsNodeGroup=None, pbsNodeProcs=None):
         """Constructor
 
         @param outputDir: output directory, or None
@@ -66,6 +66,8 @@ class Batch(object):
         self.dryrun = dryrun
         self.doExec = doExec
         self.mpiexec = mpiexec
+        self.pbsNodeGroup = pbsNodeGroup
+        self.pbsNodeProcs = pbsNodeProcs
 
     def shebang(self):
         return "#!/bin/bash"
@@ -142,7 +144,25 @@ class PbsBatch(Batch):
     def preamble(self, walltime=None):
         if walltime is None:
             walltime = self.walltime
-        return "\n".join(["#PBS -l nodes=%d:ppn=%d" % (self.numNodes, self.numProcsPerNode),
+
+        if self.pbsNodeProcs:
+            optNodeProcs = "#PBS -l nodes=%s" % (self.pbsNodeProcs)
+        elif self.pbsNodeGroup:
+            optNodeProcs = "#PBS -l nodes=%d:ppn=%d:%s" % (self.numNodes, self.numProcsPerNode, self.pbsNodeGroup)
+        else:
+            optNodeProcs = "#PBS -l nodes=%d:ppn=%d" % (self.numNodes, self.numProcsPerNode)
+
+        print "\n".join([ optNodeProcs, 
+                          "#PBS -l walltime=%d" % walltime if walltime is not None else "",
+                          "#PBS -o %s" % self.outputDir if self.outputDir is not None else "",
+                          "#PBS -N %s" % self.jobName if self.jobName is not None else "",
+                          "#PBS -q %s" % self.queue if self.queue is not None else "",
+                          "#PBS -j oe",
+                          "#PBS -W umask=%s" % UMASK,
+                          ])
+
+
+        return "\n".join([ optNodeProcs, 
                           "#PBS -l walltime=%d" % walltime if walltime is not None else "",
                           "#PBS -o %s" % self.outputDir if self.outputDir is not None else "",
                           "#PBS -N %s" % self.jobName if self.jobName is not None else "",
@@ -215,6 +235,12 @@ class BatchArgumentParser(argparse.ArgumentParser):
         group.add_argument("--job", help="Job name")
         group.add_argument("--nodes", type=int, default=1, help="Number of nodes")
         group.add_argument("--procs", type=int, default=1, help="Number of processors per node")
+        group.add_argument("--pbs-nodeprocs", dest="pbsNodeProcs", type=str, default=None, 
+                           help="PBS full description given to the nodes= command." \
+                               "e.g., pbsNodeProcs=\"node1:ppn=X+node2:ppn=Y+ ...\"" \
+                               "This option overrides --nodes, --procs, and --pbs-node-group.")
+        group.add_argument("--pbs-node-group", dest="pbsNodeGroup", type=str, default=None, 
+                           help="PBS property of nodes to be used, e.g., nodes=X:ppn=Y:pbsNodeGroup")
         group.add_argument("--time", type=float, default=1000,
                            help="Expected execution time per element (sec)")
         group.add_argument("--batch-type", dest="batchType", choices=BATCH_TYPES.keys(), default="pbs",
@@ -252,6 +278,8 @@ class BatchArgumentParser(argparse.ArgumentParser):
                       'dryrun': 'dryrun',
                       'doExec': 'doExec',
                       'mpiexec': 'mpiexec',
+                      'pbsNodeProcs': 'pbsNodeProcs',
+                      'pbsNodeGroup': 'pbsNodeGroup',
                       } # Mapping Batch init kwargs --> argument parser elements
         kwargs = dict((k, getattr(args, v)) for k,v in argMapping.iteritems())
         return BATCH_TYPES[args.batchType](**kwargs)
