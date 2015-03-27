@@ -152,16 +152,6 @@ class PbsBatch(Batch):
         else:
             optNodeProcs = "#PBS -l nodes=%d:ppn=%d" % (self.numNodes, self.numProcsPerNode)
 
-        print "\n".join([ optNodeProcs, 
-                          "#PBS -l walltime=%d" % walltime if walltime is not None else "",
-                          "#PBS -o %s" % self.outputDir if self.outputDir is not None else "",
-                          "#PBS -N %s" % self.jobName if self.jobName is not None else "",
-                          "#PBS -q %s" % self.queue if self.queue is not None else "",
-                          "#PBS -j oe",
-                          "#PBS -W umask=%s" % UMASK,
-                          ])
-
-
         return "\n".join([ optNodeProcs, 
                           "#PBS -l walltime=%d" % walltime if walltime is not None else "",
                           "#PBS -o %s" % self.outputDir if self.outputDir is not None else "",
@@ -237,10 +227,11 @@ class BatchArgumentParser(argparse.ArgumentParser):
         group.add_argument("--procs", type=int, default=1, help="Number of processors per node")
         group.add_argument("--pbs-nodeprocs", dest="pbsNodeProcs", type=str, default=None, 
                            help="PBS full description given to the nodes= command." \
-                               "e.g., pbsNodeProcs=\"node1:ppn=X+node2:ppn=Y+ ...\"" \
+                               "e.g., pbsNodeProcs=\"node1:ppn=X+node2:ppn=Y+ ...\" " \
                                "This option overrides --nodes, --procs, and --pbs-node-group.")
         group.add_argument("--pbs-node-group", dest="pbsNodeGroup", type=str, default=None, 
-                           help="PBS property of nodes to be used, e.g., nodes=X:ppn=Y:pbsNodeGroup")
+                           help="PBS property of nodes to be used, which is inserted to the end of " \
+                               "PBS -l nodes= command., e.g., nodes=X:ppn=Y:pbsNodeGroup")
         group.add_argument("--time", type=float, default=1000,
                            help="Expected execution time per element (sec)")
         group.add_argument("--batch-type", dest="batchType", choices=BATCH_TYPES.keys(), default="pbs",
