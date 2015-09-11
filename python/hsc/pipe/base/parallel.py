@@ -196,7 +196,7 @@ class SlurmBatch(Batch):
                           ])
 
     def submitCommand(self, scriptName):
-        return "sbatch %s %s" % (self.options if self.options is not None else "", scriptName)
+        return "sbatch %s %s" % (self.submit if self.submit is not None else "", scriptName)
 
 class SmpBatch(Batch):
     """Not-really-Batch submission with multiple cores on the current node
