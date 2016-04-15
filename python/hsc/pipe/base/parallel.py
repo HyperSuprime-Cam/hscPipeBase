@@ -289,15 +289,14 @@ BATCH_TYPES = {'pbs': PbsBatch,
 class KeyValueAction(argparse.Action):
     """argparse callback to parse name=value pairs"""
     def __call__(self, parser, namespace, values, option):
-        argName = option.lstrip("-")
-        target = getattr(namespace, argName, None)
+        target = getattr(namespace, self.dest, None)
         if target is None:
             target = {}
-            setattr(namespace, argName, target)
+            setattr(namespace, self.dest, target)
 
         for nameValue in values:
             name, sep, value = nameValue.partition("=")
-            if not valueStr:
+            if not value:
                 parser.error("%s value %s must be in form name=value" % (option, nameValue))
             target[name] = value
 
